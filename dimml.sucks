@@ -1,0 +1,66 @@
+concept Global {
+  match '*'
+
+  val url = `window.location.href`
+  val pageName = `getPageName()`
+  val visitorId = `localStorage.dimmlcid=localStorage.dimmlcid||guid()`
+  val SessionId = `sessionStorage.dimmlcid=sessionStorage.dimmlcid||guid()`
+  val sandboxID = `dimml.cookies.get('dimml')`
+  val timeOfDay = `new Date().toJSON().split('T')[1].substring(0,8)`
+  val date = `new Date().toJSON().split('T')[0]`
+  val title = `document.title`
+  val referrer = `getReferrerHostname()`
+  val language = `getLanguageLink().innerText==="NEDERLANDS"?"en":"nl"`
+  val pageCategory = `getPageName().split('/')[0]`
+  val marketingCampaign = `getMarketingCampaign()`
+  
+
+  flow
+    => ip
+    => session['SessionId',
+                Visit = `(session[pageName] = (session[pageName]?:0).toLong()+1)==1?1:0`@groovy,
+                PagePath = `(session.pagepath=(session.pagepath?:[]))<<pageName`@groovy]
+    //=> sql['',`dataSource`,limit='100',batch='1'] 
+    => debug
+    => script
+
+  plugin script `console.log( 'Web analytics example' )`
+  plugin session
+  plugin debug
+}
+
+def guid = `dimml.sha1(+new Date()+Math.random().toString(36).slice(2)+navigator.userAgent).slice(20)`
+
+def getLanguageLink = `document.getElementsByClassName("pageHeader-topbar-language")[0].firstChild`
+def getDutchUrl = `getLanguageLink().innerText==="NEDERLANDS"?getLanguageLink().href:window.location.href`
+def getPageName = `(new URL(getDutchUrl()).pathname||'/').substring(1)||'home'`
+
+def getReferrerHostname = `new URL(document.referrer).hostname`
+
+def getMarketingCampaign = `
+    var referrer = document.referrer;
+    if (referrer === "")
+        return "Direct";
+    var hostnameParts = getReferrerHostname().split('.');
+    var domain = hostnameParts[hostnameParts.length-2];
+    switch(domain) {
+        case "google":
+        case "bing":
+        case "yahoo":
+            return "SEO";
+        case "facebook":
+            return "Facebook";
+        case "tue":
+            return "Internal";
+        default:
+            return "Other";
+    }`
+    
+const dataSource = `{
+    type: 'mysql',
+    port: 3306,
+    serverName: 'dimmldemo.o2mc.io',
+    databaseName: 'dimmldemo',
+    user: 'dimmlwa',
+    password: '2YN0nWU4z3Eo'
+}`

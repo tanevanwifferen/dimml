@@ -1,3 +1,33 @@
+concept CarSearch extends Global {
+  match '*/zoeken*'
+  
+  val searchParameter = `getSearchParameter()`
+  
+  //plugin rest:json[flowName = 'json']
+  flow 
+    => select[`searchParameter.length() == 8 && searchParameter==~/^.*\-.*\-.*$/`@groovy]
+    => filter['searchParameter'] 
+    => code[url = `"https://overheid.io/api/voertuiggegevens/"+searchParameter+"?ovio-api-key=221ed3e47ae357f95b78b52b4ed55dc7622ba39af048f9674cb0026c3143af72"`@groovy]
+    => http[url='@url',method='GET', headers = 'Accept: application/json']
+    => code[Kleur = `getParam(result,"eerstekleur")`@groovy,
+            Naam = `getParam(result,"handelsbenaming")`@groovy
+            ]
+    => filter['Kleur', 'Naam']
+     => debug
+    
+    def getParam  = {str, param => `
+    if (str.indexOf('"'+param+'":"')>-1) {
+        String temp = str.split('"'+param+'":"')[1]
+        return temp.split('"')[0]
+    } else if (str.indexOf('"'+param+'":')>-1) {
+        String temp = str.split('"'+param+'":')[1]
+        return temp.split(',')[0]
+    } else {
+        return ""
+    }
+    `@groovy}
+}
+
 concept Global {
   match '*'
 
@@ -5,7 +35,7 @@ concept Global {
   val pageName = `getPageName()`
   val visitorId = `localStorage.dimmlcid=localStorage.dimmlcid||guid()`
   val SessionId = `sessionStorage.dimmlcid=sessionStorage.dimmlcid||guid()`
-  val sandboxID = `dimml.cookies.get('dimml')`
+  val sandboxID = 'cf1c2c110d04fb997985bac277db13a5'
   val timeOfDay = `new Date().toJSON().split('T')[1].substring(0,8)`
   val date = `new Date().toJSON().split('T')[0]`
   val title = `document.title`
@@ -13,27 +43,35 @@ concept Global {
   val language = `getLanguageLink().innerText==="NEDERLANDS"?"en":"nl"`
   val pageCategory = `getPageName().split('/')[0]`
   val marketingCampaign = `getMarketingCampaign()`
-  
 
   flow
     => ip
     => session['SessionId',
                 Visit = `(session[pageName] = (session[pageName]?:0).toLong()+1)==1?1:0`@groovy,
-                PagePath = `(session.pagepath=(session.pagepath?:[]))<<pageName`@groovy]
+                PagePath = `(session.pagepath=(session.pagepath?:[]))<<pageName`@groovy,
+                //If not yet defined then assign current date and time to startofsession
+                StartOfVisit = `session.startofvisit=session.startofvisit?:date+' '+timeOfDay`@groovy
+                ]
     //=> sql['',`dataSource`,limit='100',batch='1'] 
-    => debug
     => script
+    => debug
 
   plugin script `console.log( 'Web analytics example' )`
   plugin session
   plugin debug
 }
-
 def guid = `dimml.sha1(+new Date()+Math.random().toString(36).slice(2)+navigator.userAgent).slice(20)`
 
-def getLanguageLink = `document.getElementsByClassName("pageHeader-topbar-language")[0].firstChild`
-def getDutchUrl = `getLanguageLink().innerText==="NEDERLANDS"?getLanguageLink().href:window.location.href`
-def getPageName = `(new URL(getDutchUrl()).pathname||'/').substring(1)||'home'`
+//Fancy version of getPageName that occasionaly works:
+//def getLanguageLink = `document.getElementsByClassName("pageHeader-topbar-language")[0].firstChild`
+//def getDutchUrl = `getLanguageLink().innerText==="NEDERLANDS"?getLanguageLink().href:window.location.href`
+//def getPageName = `(new URL(getDutchUrl()).pathname||'/').substring(1)||'home'`
+def getPageName = `(location.pathname||'/').substring(1)||'home'`
+
+def getSearchParameter = `
+    var regex = new RegExp("[\\?&]" + 'q' + "=([^&#]*)"),
+    results = regex.exec(location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));`
 
 def getReferrerHostname = `new URL(document.referrer).hostname`
 

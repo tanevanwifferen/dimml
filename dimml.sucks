@@ -1,11 +1,13 @@
 concept CarSearch extends Global {
-  match '*/zoeken*'
+  match '*/zoeken*' 
   
   val searchParameter = `getSearchParameter()`
+  val testID = 'Yo' 
+  val testTimeStamp = `new Date().toJSON().split('T')[0]+' '+new Date().toJSON().split('T')[1].substring(0,8)`
   
-  //plugin rest:json[flowName = 'json']
+  //Flow that gathers information on cars based on the license plate if it was input
   flow 
-    => select[`searchParameter.length() == 8 && searchParameter==~/^.*\-.*\-.*$/`@groovy]
+    => select[`searchParameter.length() == 8 && searchParameter==~/^.*\-.*\-.*$/`@groovy] //Checks if the search was for a Dutch license plate
     => filter['searchParameter'] 
     => code[url = `"https://overheid.io/api/voertuiggegevens/"+searchParameter+"?ovio-api-key=221ed3e47ae357f95b78b52b4ed55dc7622ba39af048f9674cb0026c3143af72"`@groovy]
     => http[url='@url',method='GET', headers = 'Accept: application/json']
@@ -13,8 +15,11 @@ concept CarSearch extends Global {
             Naam = `getParam(result,"handelsbenaming")`@groovy
             ]
     => filter['Kleur', 'Naam']
-     => debug
-    
+    //Insert information into the Cars table of the database
+    //Alles wat niet Naam is hier blijkbaar null
+    //=> sql["INSERT INTO `Cars` (`sandbox_id`, `timestamp`, `license_plate`, `name`) VALUES (:sandboxID, :timeStamp, :referrer, :url)", `dataSource`]
+    => debug
+
     def getParam  = {str, param => `
     if (str.indexOf('"'+param+'":"')>-1) {
         String temp = str.split('"'+param+'":"')[1]
@@ -30,36 +35,63 @@ concept CarSearch extends Global {
 
 concept Global {
   match '*'
-
+  
   val url = `window.location.href`
+  val previousUrl = `document.referrer`
   val pageName = `getPageName()`
   val visitorId = `localStorage.dimmlcid=localStorage.dimmlcid||guid()`
   val SessionId = `sessionStorage.dimmlcid=sessionStorage.dimmlcid||guid()`
   val sandboxID = 'cf1c2c110d04fb997985bac277db13a5'
   val timeOfDay = `new Date().toJSON().split('T')[1].substring(0,8)`
   val date = `new Date().toJSON().split('T')[0]`
+  val timeStamp = `new Date().toJSON().split('T')[0]+' '+new Date().toJSON().split('T')[1].substring(0,8)`
   val title = `document.title`
   val referrer = `getReferrerHostname()`
   val language = `getLanguageLink().innerText==="NEDERLANDS"?"en":"nl"`
   val pageCategory = `getPageName().split('/')[0]`
   val marketingCampaign = `getMarketingCampaign()`
+  
+  //Information regarding the database
+  const dataSource = `{
+    type: 'mysql',
+    port: 3306,
+    serverName: 'dimmldemo.o2mc.io',
+    databaseName: 'dimmldemo',
+    user: 'dimmlwa',
+    password: '2YN0nWU4z3Eo'
+    }`
 
+  //Flow that gathers information for and inserts it into the PageFlow table of the database
   flow
     => ip
     => session['SessionId',
                 Visit = `(session[pageName] = (session[pageName]?:0).toLong()+1)==1?1:0`@groovy,
                 PagePath = `(session.pagepath=(session.pagepath?:[]))<<pageName`@groovy,
                 //If not yet defined then assign current date and time to startofsession
-                StartOfVisit = `session.startofvisit=session.startofvisit?:date+' '+timeOfDay`@groovy
+                StartOfVisit = `session.startofvisit=session.startofvisit?:timeStamp`@groovy
                 ]
     //=> sql['',`dataSource`,limit='100',batch='1'] 
     => script
+    //Weet niet 100% zeker of ie die StartOfVisit en Visit correct pakt hier.
+    => sql["INSERT INTO `PageFlow` (`sandbox_id`, `timestamp`, `visit_start`, `seq_nr`, `url`, `previous_url`) VALUES(:sandboxID, :timeStamp, :StartOfVisit, :Visit, :url, :previousUrl)", `dataSource`]
     => debug
 
+    //Flow that inserts information into the Sources table of the database
+    flow
+    => sql["INSERT INTO `Sources` (`sandbox_id`, `timestamp`, `referrer_domain`, `campaign`) VALUES (:sandboxID, :timeStamp, :referrer, :marketingCampaign)", `dataSource`]
+    => debug
+    
+    //Flow that inserts information into the Pages table of the database
+    flow
+    => sql["INSERT INTO `Pages` (`sandbox_id`, `timestamp`, `url`, `page_title`, `page_category`, `time`, `date`) VALUES (:sandboxID, :timeStamp, :url, :pageName, :pageCategory, :time, :date)", `dataSource`]
+    => debug
+    
   plugin script `console.log( 'Web analytics example' )`
   plugin session
   plugin debug
 }
+
+//Defines a random sequence
 def guid = `dimml.sha1(+new Date()+Math.random().toString(36).slice(2)+navigator.userAgent).slice(20)`
 
 //Fancy version of getPageName that occasionaly works:
@@ -68,13 +100,16 @@ def guid = `dimml.sha1(+new Date()+Math.random().toString(36).slice(2)+navigator
 //def getPageName = `(new URL(getDutchUrl()).pathname||'/').substring(1)||'home'`
 def getPageName = `(location.pathname||'/').substring(1)||'home'`
 
+//Retrieves what term was searched for on the TU/E website
 def getSearchParameter = `
     var regex = new RegExp("[\\?&]" + 'q' + "=([^&#]*)"),
     results = regex.exec(location.search);
     return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));`
 
+//Retrieves only the host name and not the entire last visited URL
 def getReferrerHostname = `new URL(document.referrer).hostname`
 
+//Looks at what domain the referrer come from and assigns value based on that
 def getMarketingCampaign = `
     var referrer = document.referrer;
     if (referrer === "")
@@ -93,12 +128,3 @@ def getMarketingCampaign = `
         default:
             return "Other";
     }`
-    
-const dataSource = `{
-    type: 'mysql',
-    port: 3306,
-    serverName: 'dimmldemo.o2mc.io',
-    databaseName: 'dimmldemo',
-    user: 'dimmlwa',
-    password: '2YN0nWU4z3Eo'
-}`

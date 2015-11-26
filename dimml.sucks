@@ -1,23 +1,22 @@
 concept CarSearch extends Global {
   match '*/zoeken*' 
-  
+
   val searchParameter = `getSearchParameter()`
-  val testID = 'Yo' 
-  val testTimeStamp = `new Date().toJSON().split('T')[0]+' '+new Date().toJSON().split('T')[1].substring(0,8)`
   
-  //Flow that gathers information on cars based on the license plate if it was input
+  //Flow that gathers information on cars based on the license plate if that was the input of the search
   flow 
-    => select[`searchParameter.length() == 8 && searchParameter==~/^.*\-.*\-.*$/`@groovy] //Checks if the search was for a Dutch license plate
-    => filter['searchParameter'] 
+    => select[`searchParameter.length() == 8 && searchParameter==~/^.*\-.*\-.*$/`@groovy] //Check if the search was for a Dutch license plate
+    => filter['searchParameter'] //Filter based on if it is or not
     => code[url = `"https://overheid.io/api/voertuiggegevens/"+searchParameter+"?ovio-api-key=221ed3e47ae357f95b78b52b4ed55dc7622ba39af048f9674cb0026c3143af72"`@groovy]
     => http[url='@url',method='GET', headers = 'Accept: application/json']
     => code[Kleur = `getParam(result,"eerstekleur")`@groovy,
-            Naam = `getParam(result,"handelsbenaming")`@groovy
+            Naam = `getParam(result,"handelsbenaming")`@groovy,
+            sbID = `'cf1c2c110d04fb997985bac277db13a5'`@groovy,
+            TimeStamp = `new Date().toJSON().split('T')[0]+' '+new Date().toJSON().split('T')[1].substring(0,8)`
             ]
-    => filter['Kleur', 'Naam']
+    => filter['Kleur', 'Naam', 'sbID','TimeStamp', 'searchParameter']
     //Insert information into the Cars table of the database
-    //Alles wat niet Naam is hier blijkbaar null
-    //=> sql["INSERT INTO `Cars` (`sandbox_id`, `timestamp`, `license_plate`, `name`) VALUES (:sandboxID, :timeStamp, :referrer, :url)", `dataSource`]
+    => sql["INSERT INTO `Cars` (`sandbox_id`, `timestamp`, `license_plate`, `name`) VALUES (:sbID, :TimeStamp, :searchParameter, :Naam)", `dataSource`]
     => debug
 
     def getParam  = {str, param => `

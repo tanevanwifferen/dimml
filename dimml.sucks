@@ -32,6 +32,27 @@ concept CarSearch extends Global {
     `@groovy}
 }
 
+concept API {
+    match '*restapi*'
+
+    plugin rest " 
+        /getCars => getCars
+        /getPageFlow => getPageFlow
+        /getSources => getSources
+        /getPages => getPages
+     "
+}
+
+//Information regarding the database
+  const dataSource = `{
+    type: 'mysql',
+    port: 3306,
+    serverName: 'dimmldemo.o2mc.io',
+    databaseName: 'dimmldemo',
+    user: 'dimmlwa',
+    password: '2YN0nWU4z3Eo'
+    }`
+
 concept Global {
   match '*'
   
@@ -50,15 +71,7 @@ concept Global {
   val pageCategory = `getPageName().split('/')[0]`
   val marketingCampaign = `getMarketingCampaign()`
   
-  //Information regarding the database
-  const dataSource = `{
-    type: 'mysql',
-    port: 3306,
-    serverName: 'dimmldemo.o2mc.io',
-    databaseName: 'dimmldemo',
-    user: 'dimmlwa',
-    password: '2YN0nWU4z3Eo'
-    }`
+  
 
   //Flow that gathers information for and inserts it into the PageFlow table of the database
   flow
@@ -69,7 +82,6 @@ concept Global {
                 //If not yet defined then assign current date and time to startofsession
                 StartOfVisit = `session.startofvisit=session.startofvisit?:timeStamp`@groovy
                 ]
-    //=> sql['',`dataSource`,limit='100',batch='1'] 
     => script
     //Weet niet 100% zeker of ie die StartOfVisit en Visit correct pakt hier.
     => sql["INSERT INTO `PageFlow` (`sandbox_id`, `timestamp`, `visit_start`, `seq_nr`, `url`, `previous_url`) VALUES(:sandboxID, :timeStamp, :StartOfVisit, :Visit, :url, :previousUrl)", `dataSource`]
@@ -93,10 +105,7 @@ concept Global {
 //Defines a random sequence
 def guid = `dimml.sha1(+new Date()+Math.random().toString(36).slice(2)+navigator.userAgent).slice(20)`
 
-//Fancy version of getPageName that occasionaly works:
-//def getLanguageLink = `document.getElementsByClassName("pageHeader-topbar-language")[0].firstChild`
-//def getDutchUrl = `getLanguageLink().innerText==="NEDERLANDS"?getLanguageLink().href:window.location.href`
-//def getPageName = `(new URL(getDutchUrl()).pathname||'/').substring(1)||'home'`
+//function that returns page name
 def getPageName = `(location.pathname||'/').substring(1)||'home'`
 
 //Retrieves what term was searched for on the TU/E website
@@ -128,16 +137,7 @@ def getMarketingCampaign = `
             return "Other";
     }`
 
-concept API {
-    match '*restapi*'
 
-    plugin rest " 
-        /getCars => getCars
-        /getPageFlow => getPageFlow
-        /getSources => getSources
-        /getPages => getPages
-     "
-}
 
 // the method that shows the cars that are saved on the database with our api key
 concept getCars {

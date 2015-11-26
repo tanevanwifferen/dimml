@@ -95,7 +95,7 @@ concept Global {
     
     //Flow that inserts information into the Pages table of the database
     flow
-    => sql["INSERT INTO `Pages` (`sandbox_id`, `timestamp`, `url`, `page_title`, `page_category`, `time`, `date`) VALUES (:sandboxID, :timeStamp, :url, :pageName, :pageCategory, :time, :date)", `dataSource`]
+    => sql["INSERT INTO `Pages` (`sandbox_id`, `timestamp`, `url`, `page_title`, `page_category`, `time`, `date`) VALUES (:sandboxID, :timeStamp, :url, :pageName, :pageCategory, :timeOfDay, :date)", `dataSource`]
     => debug
     
   plugin script `console.log( 'Web analytics example' )`

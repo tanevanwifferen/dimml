@@ -127,3 +127,54 @@ def getMarketingCampaign = `
         default:
             return "Other";
     }`
+
+concept API {
+    match '*restapi*'
+
+    plugin rest " 
+        /getCars => getCars
+        /getPageFlow => getPageFlow
+        /getSources => getSources
+        /getPages => getPages
+     "
+}
+
+// the method that shows the cars that are saved on the database with our api key
+concept getCars {
+    plugin rest:json[flowName = 'json']
+
+     flow (json)
+     => sql["SELECT * FROM `Cars` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => expand['result']
+     => out
+}
+
+// the method that shows the page flow that are saved on the database with our api key
+concept getPageFlow {
+    plugin rest:json[flowName = 'json']
+
+     flow (json)
+     => sql["SELECT * FROM `PageFlow` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => expand['result']
+     => out
+}
+
+// the method that shows all page sources that are saved on the database with our api key
+concept getSources {
+    plugin rest:json[flowName = 'json']
+
+     flow (json)
+     => sql["SELECT * FROM `Sources` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => expand['result']
+     => out
+}
+
+// the method that shows all pages that are saved on the database with our api key
+concept getPages {
+    plugin rest:json[flowName = 'json']
+
+     flow (json)
+     => sql["SELECT * FROM `Pages` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => expand['result']
+     => out
+}

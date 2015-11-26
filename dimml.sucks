@@ -32,6 +32,9 @@ concept CarSearch extends Global {
     `@groovy}
 }
 
+// the REST api that we use. To access it, use this:
+// curl -H "Content-Type:application/json" --referrer https://www.tue.nl/restapi?dimml=sandbox/7d5f1a40133293e9290eb39069b41f773d2a41eb 
+// http://baltar-dev.dimml.io/{endpointName}?ShowOnlyLastWeek={0,1}
 concept API {
     match '*restapi*'
 
@@ -70,8 +73,6 @@ concept Global {
   val language = `getLanguageLink().innerText==="NEDERLANDS"?"en":"nl"`
   val pageCategory = `getPageName().split('/')[0]`
   val marketingCampaign = `getMarketingCampaign()`
-  
-  
 
   //Flow that gathers information for and inserts it into the PageFlow table of the database
   flow
@@ -137,16 +138,14 @@ def getMarketingCampaign = `
             return "Other";
     }`
 
-
-
 // the method that shows the cars that are saved on the database with our api key
 concept getCars {
     plugin rest:json[flowName = 'json']
 
      flow (json)
-     => sql["SELECT * FROM `Cars` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
-     => expand['result']
-     => out
+        => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+        => sql["SELECT * FROM `Cars` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+        => out
 }
 
 // the method that shows the page flow that are saved on the database with our api key
@@ -154,7 +153,8 @@ concept getPageFlow {
     plugin rest:json[flowName = 'json']
 
      flow (json)
-     => sql["SELECT * FROM `PageFlow` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     => sql["SELECT * FROM `PageFlow` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
      => expand['result']
      => out
 }
@@ -164,7 +164,8 @@ concept getSources {
     plugin rest:json[flowName = 'json']
 
      flow (json)
-     => sql["SELECT * FROM `Sources` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     => sql["SELECT * FROM `Sources` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
      => expand['result']
      => out
 }
@@ -174,7 +175,8 @@ concept getPages {
     plugin rest:json[flowName = 'json']
 
      flow (json)
-     => sql["SELECT * FROM `Pages` WHERE `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
+     => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     => sql["SELECT * FROM `Pages` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
      => expand['result']
      => out
 }

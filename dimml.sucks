@@ -30,12 +30,6 @@ concept CarSearch extends Global {
         return ""
     }
     `@groovy}
-    
-  val category = `new URL(document.referrer).pathname.split('/')[1]`
-  val search = '1'
-  
-  flow
-    => moa:naivebayes[model = `features`, class = 'search']
 }
 
 // the REST api that we use. To access it, use this:
@@ -108,8 +102,9 @@ concept Global {
     => sql["INSERT INTO `Pages` (`sandbox_id`, `timestamp`, `url`, `page_title`, `page_category`, `time`, `date`) VALUES (:sandboxID, :timeStamp, :url, :pageName, :pageCategory, :timeOfDay, :date)", `dataSource`]
   
   val category = `new URL(document.referrer).pathname.split('/')[1]`
-  val search = '0'
+  val search = `/\/zoeken/.test(document.location.pathname)?'1':'0'`
   
+  //Flow that learns the search activity
   flow
     => moa:naivebayes[model = `features`, class = 'search']
   

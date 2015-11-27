@@ -173,6 +173,11 @@ concept getCars {
 
      flow (json)
         => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     /*
+      * First creates a unix time timestamp. Then:
+      * If it should show only the data from last week it compares the current timestamp to the one of one week ago for all Car data in the database. If it is larger or equal to that it shows them for the given sandbox_id.
+      * If it should show all data it returns all Car data that belongs to the given sandbox_id. 
+      */
         => sql["SELECT * FROM `Cars` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
         => out
 }
@@ -183,6 +188,7 @@ concept getPageFlow {
 
      flow (json)
      => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     //Works the same way as the similar Cars sql query. 
      => sql["SELECT * FROM `PageFlow` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
      => expand['result']
      => out
@@ -194,6 +200,7 @@ concept getSources {
 
      flow (json)
      => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     //Works the same way as the similar Cars sql query. 
      => sql["SELECT * FROM `Sources` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
      => expand['result']
      => out
@@ -205,6 +212,7 @@ concept getPages {
 
      flow (json)
      => code [ShowOnlyLastWeek = `ShowOnlyLastWeek?ShowOnlyLastWeek:'0'`@groovy]
+     //Works the same way as the similar Cars sql query. 
      => sql["SELECT * FROM `Pages` WHERE ((FROM_UNIXTIME(UNIX_TIMESTAMP(`timestamp`)) >= DATE(NOW()) - INTERVAL 7 DAY AND :ShowOnlyLastWeek = '1') OR (:ShowOnlyLastWeek = '0')) AND `sandbox_id`='cf1c2c110d04fb997985bac277db13a5'",`dataSource`,limit='100',batch='1'] 
      => expand['result']
      => out

@@ -30,6 +30,12 @@ concept CarSearch extends Global {
         return ""
     }
     `@groovy}
+    
+  val category = `new URL(document.referrer).pathname.split('/')[1]`
+  val search = '1'
+  
+  flow
+    => moa:naivebayes[model = `features`, class = 'search']
 }
 
 // the REST api that we use. To access it, use this:
@@ -55,6 +61,12 @@ concept API {
     user: 'dimmlwa',
     password: '2YN0nWU4z3Eo'
     }`
+
+//Information regarding the predictions.
+const features = `{
+  category:['home','studeren','onderzoek','innoveren','universiteit'],
+  search:['0','1']
+}`
 
 concept Global {
   match '*'
@@ -86,16 +98,29 @@ concept Global {
     => script
     //Weet niet 100% zeker of ie die StartOfVisit en Visit correct pakt hier.
     => sql["INSERT INTO `PageFlow` (`sandbox_id`, `timestamp`, `visit_start`, `seq_nr`, `url`, `previous_url`) VALUES(:sandboxID, :timeStamp, :StartOfVisit, :Visit, :url, :previousUrl)", `dataSource`]
-    => debug
 
-    //Flow that inserts information into the Sources table of the database
-    flow
+  //Flow that inserts information into the Sources table of the database
+  flow
     => sql["INSERT INTO `Sources` (`sandbox_id`, `timestamp`, `referrer_domain`, `campaign`) VALUES (:sandboxID, :timeStamp, :referrer, :marketingCampaign)", `dataSource`]
+    
+  //Flow that inserts information into the Pages table of the database
+  flow
+    => sql["INSERT INTO `Pages` (`sandbox_id`, `timestamp`, `url`, `page_title`, `page_category`, `time`, `date`) VALUES (:sandboxID, :timeStamp, :url, :pageName, :pageCategory, :timeOfDay, :date)", `dataSource`]
+  
+  val category = `new URL(document.referrer).pathname.split('/')[1]`
+  val search = '0'
+  
+  flow
+    => moa:naivebayes[model = `features`, class = 'search']
+  
+  //Flow that predicts if a user is going to search
+  flow
+    => code[orgSearch = `search`@groovy, search=`1`@groovy, category=`pageCategory`@groovy]
+    => moa:classify[model = `features`]
     => debug
     
-    //Flow that inserts information into the Pages table of the database
-    flow
-    => sql["INSERT INTO `Pages` (`sandbox_id`, `timestamp`, `url`, `page_title`, `page_category`, `time`, `date`) VALUES (:sandboxID, :timeStamp, :url, :pageName, :pageCategory, :timeOfDay, :date)", `dataSource`]
+  //Flow that exports all data to debug
+  flow
     => debug
     
   plugin script `console.log( 'Web analytics example' )`
@@ -107,7 +132,7 @@ concept Global {
 def guid = `dimml.sha1(+new Date()+Math.random().toString(36).slice(2)+navigator.userAgent).slice(20)`
 
 //function that returns page name
-def getPageName = `(location.pathname||'/').substring(1)||'home'`
+def getPageName = `(location.pathname||'/home').substring(1)`
 
 //Retrieves what term was searched for on the TU/E website
 def getSearchParameter = `
